@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>新ハナビ 収支・機械割 管理</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="apple-touch-icon" href="icons/app-icon.png">
+
+  <!-- Chart.js（グラフ用） -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #f4f6fb;
+    }
+
+    header {
+      background: #2563eb;
+      color: #fff;
+      padding: 12px 16px;
+      font-size: 20px;
+      font-weight: bold;
+      text-align: center;
+    }
+
+    main {
+      padding: 12px 16px 40px;
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      padding: 12px 14px;
+      box-shadow: 0 6px 16px rgba(15, 23, 42, 0.08);
+      margin-bottom: 14px;
+    }
+
+    .card-title {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .card-title small {
+      font-size: 11px;
+      color: #64748b;
+      font-weight: normal;
+    }
+
+    .form-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 8px;
+      flex-wrap: wrap;
+    }
+
+    .form-group {
+      flex: 1 1 110px;
+      min-width: 110px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 11px;
+      margin-bottom: 2px;
+      color: #475569;
+    }
+
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 6px 8px;
+      font-size: 13px;
+      border-radius: 8px;
+      border: 1px solid #cbd5f5;
+      outline: none;
+    }
+
+    .form-group input:focus,
+    .form-group textarea:focus {
+      border-color: #2563eb;
+      box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.1);
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 48px;
+    }
+
+    .btn-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 4px;
+    }
+
+    button {
+      border: none;
+      border-radius: 999px;
+      padding: 7px 14px;
+      font-size: 13px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    .btn-main {
+      background: #2563eb;
+      color: #fff;
+    }
+
+    .btn-main:active {
+      opacity: 0.8;
+    }
+
+    .btn-sub {
+      background: #e5e7eb;
+      color: #111827;
+    }
+
+    .btn-sub:active {
+      opacity: 0.85;
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 8px;
+      margin-top: 6px;
+    }
+
+    .summary-item {
+      background: #eff6ff;
+      border-radius: 10px;
+      padding: 6px 8px;
+      font-size: 12px;
+    }
+
+    .summary-label {
+      font-size: 11px;
+      color: #64748b;
+    }
+
+    .summary-value {
+      font-size: 14px;
+      font-weight: 700;
+      margin-top: 2px;
+    }
+
+    .summary-value.small {
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+
+    th, td {
+      padding: 4px 6px;
+      border-bottom: 1px solid #e5e7eb;
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    th {
+      background: #f1f5f9;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+
+    th:first-child,
+    td:first-child {
+      text-align: left;
+    }
+
+    .table-wrapper {
+      max-height: 320px;
+      overflow: auto;
+      margin-top: 6px;
+      border-radius: 8px;
+      border: 1px solid #e2e8f0;
+      background: #fff;
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: #e5e7eb;
+      color: #111827;
+      margin-left: 4px;
+    }
+
+    .chip.good {
+      background: #dcfce7;
+      color: #166534;
+    }
+
+    .chip.bad {
+      background: #fee2e2;
+      color: #b91c1c;
+    }
+
+    .delete-btn {
+      background: #fee2e2;
+      color: #b91c1c;
+      border-radius: 999px;
+      padding: 2px 8px;
+      font-size: 11px;
+      cursor: pointer;
+      border: none;
+    }
+
+    canvas {
+      width: 100% !important;
+      max-height: 260px;
+    }
+
+    .settings-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 6px;
+    }
+
+    .settings-row .form-group {
+      min-width: 130px;
+    }
+
+    .note {
+      font-size: 11px;
+      color: #64748b;
+      margin-top: 4px;
+    }
+
+    @media (max-width: 600px) {
+      header {
+        font-size: 18px;
+      }
+      .card {
+        padding: 10px;
+      }
+      th, td {
+        font-size: 11px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>新ハナビ 収支・機械割 Webアプリ</header>
+  <main>
+    <!-- 入力フォーム -->
+    <section class="card">
+      <div class="card-title">
+        <span>本日の結果を入力</span>
+        <small>データはこの端末のブラウザに自動保存（localStorage）</small>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>日付</label>
+          <input type="date" id="date">
+        </div>
+        <div class="form-group">
+          <label>店舗名</label>
+          <input type="text" id="hall" placeholder="例）コンコルド雄踏店">
+        </div>
+        <div class="form-group">
+          <label>台番号</label>
+          <input type="text" id="machine" placeholder="例）3233">
+        </div>
+        <div class="form-group">
+          <label>総ゲーム数</label>
+          <input type="number" id="totalGames" inputmode="numeric" placeholder="例）4500">
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>BB 回数</label>
+          <input type="number" id="bb" inputmode="numeric">
+        </div>
+        <div class="form-group">
+          <label>RB 回数</label>
+          <input type="number" id="rb" inputmode="numeric">
+        </div>
+        <div class="form-group">
+          <label>投資枚数（差枚計算用）</label>
+          <input type="number" id="invest" inputmode="numeric" placeholder="例）1500">
+        </div>
+        <div class="form-group">
+          <label>回収枚数</label>
+          <input type="number" id="payout" inputmode="numeric" placeholder="例）1800">
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group" style="flex:1 1 100%">
+          <label>メモ</label>
+          <textarea id="note" placeholder="例）風鈴○, ビタ成功率△, 店内状況など"></textarea>
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn-main" id="addBtn">この内容を追加</button>
+        <button class="btn-sub" id="clearFormBtn">入力リセット</button>
+      </div>
+
+      <div class="note">
+        ※ 投資は「枚」で入力しています（1000円46枚などの換算は自分のルールでOK）<br>
+        ※ 機械割は <strong>回収枚数 ÷ 投資枚数 × 100</strong> で計算しています。
+      </div>
+    </section>
+
+    <!-- 理論機械割（期待値ライン）設定 -->
+    <section class="card">
+      <div class="card-title">
+        <span>期待値ライン設定</span>
+        <small>グラフに「理論ライン（期待値）」を表示</small>
+      </div>
+      <div class="settings-row">
+        <div class="form-group">
+          <label>理論機械割（％）</label>
+          <input type="number" id="theoryRate" step="0.1" placeholder="例）102.0">
+        </div>
+        <div class="form-group">
+          <label>1Gあたり投入枚数</label>
+          <input type="number" id="betPerGame" step="0.1" placeholder="例）3" value="3">
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn-sub" id="applyTheoryBtn">期待値ラインを更新</button>
+        <button class="btn-sub" id="resetAllBtn">全データ削除</button>
+      </div>
+      <div class="note">
+        期待値累計差枚 ≒ 総ゲーム数 × ベット枚数 × （理論機械割−100）÷100 で計算しています。<br>
+        ※ ベット枚数は「平均3枚」など、自分の打ち方に合わせて調整してください。
+      </div>
+    </section>
+
+    <!-- サマリー -->
+    <section class="card">
+      <div class="card-title">
+        <span>成績サマリー</span>
+      </div>
+      <div class="summary-grid">
+        <div class="summary-item">
+          <div class="summary-label">総実戦回数</div>
+          <div class="summary-value" id="sumSessions">0 回</div>
+        </div>
+        <div class="summary-item">
+          <div class="summary-label">総ゲーム数</div>
+          <div class="summary-value" id="sumGames">0 G</div>
+        </div>
+        <div class="summary-item">
+          <div class="summary-label">総差枚</div>
+          <div class="summary-value" id="sumMedals">0 枚</div>
+        </div>
+        <div class="summary-item">
+          <div class="summary-label">トータル機械割</div>
+          <div class="summary-value small" id="totalRate">- %</div>
+        </div>
+        <div class="summary-item">
+          <div class="summary-label">理論期待値（累計差枚）</div>
+          <div class="summary-value small" id="sumExpected">- 枚</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- グラフ -->
+    <section class="card">
+      <div class="card-title">
+        <span>累計差枚グラフ</span>
+        <small>実差枚と理論ラインを表示</small>
+      </div>
+      <canvas id="cumulativeChart"></canvas>
+    </section>
+
+    <!-- 収支一覧 -->
+    <section class="card">
+      <div class="card-title">
+        <span>収支一覧</span>
+        <small>新しい順に表示</small>
+      </div>
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>日付</th>
+              <th>店舗</th>
+              <th>台</th>
+              <th>G数</th>
+              <th>BB</th>
+              <th>RB</th>
+              <th>投資</th>
+              <th>回収</th>
+              <th>差枚</th>
+              <th>機械割</th>
+              <th>合算</th>
+              <th>削除</th>
+            </tr>
+          </thead>
+          <tbody id="recordsBody">
+          </tbody>
+        </table>
+      </div>
+      <div class="note">
+        機械割：回収 ÷ 投資 × 100<br>
+        合算：総ゲーム数 ÷（BB + RB） ※ボーナス合算
+      </div>
+    </section>
+  </main>
+
+  <script>
+    // ====== データ格納用 ======
+    const STORAGE_KEY = "shinHanabiRecords_v1";
+    const SETTINGS_KEY = "shinHanabiSettings_v1";
+
+    let records = [];
+    let settings = {
+      theoryRate: null,
+      betPerGame: 3
+    };
+
+    let chartInstance = null;
+
+    // ====== 初期化 ======
+    window.addEventListener("DOMContentLoaded", () => {
+      // 日付を今日にセット
+      const today = new Date().toISOString().slice(0, 10);
+      document.getElementById("date").value = today;
+
+      loadData();
+      bindEvents();
+      renderAll();
+    });
+
+    function bindEvents() {
+      document.getElementById("addBtn").addEventListener("click", handleAddRecord);
+      document.getElementById("clearFormBtn").addEventListener("click", clearForm);
+      document.getElementById("applyTheoryBtn").addEventListener("click", applyTheorySettings);
+      document.getElementById("resetAllBtn").addEventListener("click", resetAllData);
+    }
+
+    function loadData() {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        try {
+          records = JSON.parse(raw);
+        } catch (e) {
+          records = [];
+        }
+      }
+
+      const rawSettings = localStorage.getItem(SETTINGS_KEY);
+      if (rawSettings) {
+        try {
+          settings = { ...settings, ...JSON.parse(rawSettings) };
+        } catch (e) {}
+      }
+
+      if (settings.theoryRate != null) {
+        document.getElementById("theoryRate").value = settings.theoryRate;
+      }
+      if (settings.betPerGame != null) {
+        document.getElementById("betPerGame").value = settings.betPerGame;
+      }
+    }
+
+    function saveData() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+    }
+
+    function saveSettings() {
+      localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+    }
+
+    // ====== レコード追加 ======
+    function handleAddRecord() {
+      const date = document.getElementById("date").value;
+      const hall = document.getElementById("hall").value.trim();
+      const machine = document.getElementById("machine").value.trim();
+      const totalGames = Number(document.getElementById("totalGames").value) || 0;
+      const bb = Number(document.getElementById("bb").value) || 0;
+      const rb = Number(document.getElementById("rb").value) || 0;
+      const invest = Number(document.getElementById("invest").value) || 0;
+      const payout = Number(document.getElementById("payout").value) || 0;
+      const note = document.getElementById("note").value.trim();
+
+      if (!date) {
+        alert("日付を入力してください。");
+        return;
+      }
+      if (invest <= 0 && payout <= 0 && totalGames <= 0) {
+        if (!confirm("G数・投資・回収が空です。このまま追加しますか？")) return;
+      }
+
+      const newRecord = {
+        id: Date.now(),
+        date,
+        hall,
+        machine,
+        totalGames,
+        bb,
+        rb,
+        invest,
+        payout,
+        note
+      };
+
+      records.push(newRecord);
+      // 日付順に並べる（古い順）
+      records.sort((a, b) => (a.date > b.date ? 1 : a.date < b.date ? -1 : a.id - b.id));
+
+      saveData();
+      clearForm(false);
+      renderAll();
+    }
+
+    function clearForm(resetDate = false) {
+      if (resetDate) {
+        document.getElementById("date").value = "";
+      }
+      document.getElementById("hall").value = "";
+      document.getElementById("machine").value = "";
+      document.getElementById("totalGames").value = "";
+      document.getElementById("bb").value = "";
+      document.getElementById("rb").value = "";
+      document.getElementById("invest").value = "";
+      document.getElementById("payout").value = "";
+      document.getElementById("note").value = "";
+    }
+
+    function deleteRecord(id) {
+      if (!confirm("このレコードを削除しますか？")) return;
+      records = records.filter(r => r.id !== id);
+      saveData();
+      renderAll();
+    }
+
+    // ====== 設定関連 ======
+    function applyTheorySettings() {
+      const theoryRate = Number(document.getElementById("theoryRate").value) || null;
+      const betPerGame = Number(document.getElementById("betPerGame").value) || 0;
+
+      settings.theoryRate = theoryRate;
+      settings.betPerGame = betPerGame > 0 ? betPerGame : 3;
+
+      saveSettings();
+      renderAll();
+    }
+
+    function resetAllData() {
+      if (!confirm("全てのデータと設定を削除しますか？（元に戻せません）")) return;
+      records = [];
+      settings = {
+        theoryRate: null,
+        betPerGame: 3
+      };
+      saveData();
+      saveSettings();
+      renderAll();
+    }
+
+    // ====== 描画 ======
+    function renderAll() {
+      renderTable();
+      renderSummary();
+      renderChart();
+    }
+
+    function renderTable() {
+      const tbody = document.getElementById("recordsBody");
+      tbody.innerHTML = "";
+
+      if (!records.length) return;
+
+      // 新しい順に表示したいので逆順で
+      const displayRecords = [...records].sort((a, b) => (a.date > b.date ? -1 : a.date < b.date ? 1 : b.id - a.id));
+
+      displayRecords.forEach(rec => {
+        const tr = document.createElement("tr");
+
+        const diff = rec.payout - rec.invest;
+        const rate = rec.invest > 0 ? (rec.payout / rec.invest) * 100 : null;
+        const bonusCount = (rec.bb || 0) + (rec.rb || 0);
+        const gassan = bonusCount > 0 ? rec.totalGames / bonusCount : null;
+
+        const diffClass = diff > 0 ? "good" : diff < 0 ? "bad" : "";
+
+        tr.innerHTML = `
+          <td>${rec.date}</td>
+          <td>${escapeHtml(rec.hall || "")}</td>
+          <td>${escapeHtml(rec.machine || "")}</td>
+          <td>${rec.totalGames ? rec.totalGames.toLocaleString() : ""}</td>
+          <td>${rec.bb || ""}</td>
+          <td>${rec.rb || ""}</td>
+          <td>${rec.invest ? rec.invest.toLocaleString() : ""}</td>
+          <td>${rec.payout ? rec.payout.toLocaleString() : ""}</td>
+          <td>
+            <span class="${diffClass ? "chip " + diffClass : ""}">
+              ${diff ? diff.toLocaleString() : "0"}
+            </span>
+          </td>
+          <td>${rate ? rate.toFixed(1) + " %" : "-"}</td>
+          <td>${gassan ? gassan.toFixed(1) : "-"}</td>
+          <td>
+            <button class="delete-btn" data-id="${rec.id}">削除</button>
+          </td>
+        `;
+
+        tbody.appendChild(tr);
+      });
+
+      // 削除ボタンにイベント
+      tbody.querySelectorAll(".delete-btn").forEach(btn => {
+        const id = Number(btn.getAttribute("data-id"));
+        btn.addEventListener("click", () => deleteRecord(id));
+      });
+    }
+
+    function renderSummary() {
+      const sumSessions = records.length;
+      let sumGames = 0;
+      let sumInvest = 0;
+      let sumPayout = 0;
+
+      records.forEach(r => {
+        sumGames += r.totalGames || 0;
+        sumInvest += r.invest || 0;
+        sumPayout += r.payout || 0;
+      });
+
+      const sumMedals = sumPayout - sumInvest;
+      const totalRate = sumInvest > 0 ? (sumPayout / sumInvest) * 100 : null;
+
+      // 理論期待値
+      let sumExpected = null;
+      if (settings.theoryRate && settings.betPerGame && sumGames > 0) {
+        const edge = (settings.theoryRate - 100) / 100; // 例：102% → 0.02
+        sumExpected = Math.round(sumGames * settings.betPerGame * edge);
+      }
+
+      document.getElementById("sumSessions").textContent = sumSessions + " 回";
+      document.getElementById("sumGames").textContent = sumGames.toLocaleString() + " G";
+      document.getElementById("sumMedals").textContent = (sumMedals >= 0 ? "+" : "") + sumMedals.toLocaleString() + " 枚";
+      document.getElementById("totalRate").textContent = totalRate ? totalRate.toFixed(2) + " %" : "- %";
+      document.getElementById("sumExpected").textContent = sumExpected != null
+        ? (sumExpected >= 0 ? "+" : "") + sumExpected.toLocaleString() + " 枚"
+        : "- 枚";
+    }
+
+    function renderChart() {
+      const ctx = document.getElementById("cumulativeChart").getContext("2d");
+
+      if (!records.length) {
+        if (chartInstance) {
+          chartInstance.destroy();
+          chartInstance = null;
+        }
+        return;
+      }
+
+      // 古い順で累計差枚を計算
+      const sorted = [...records].sort((a, b) => (a.date > b.date ? 1 : a.date < b.date ? -1 : a.id - b.id));
+
+      let cumulative = 0;
+      let cumulativeExpected = 0;
+
+      const labels = [];
+      const actualData = [];
+      const expectedData = [];
+
+      const theoryRate = settings.theoryRate;
+      const betPerGame = settings.betPerGame || 3;
+
+      sorted.forEach(r => {
+        const diff = (r.payout || 0) - (r.invest || 0);
+        cumulative += diff;
+
+        labels.push(r.date);
+        actualData.push(cumulative);
+
+        if (theoryRate && betPerGame && r.totalGames) {
+          const edge = (theoryRate - 100) / 100;
+          cumulativeExpected += r.totalGames * betPerGame * edge;
+          expectedData.push(Math.round(cumulativeExpected));
+        } else {
+          expectedData.push(null);
+        }
+      });
+
+      if (chartInstance) {
+        chartInstance.destroy();
+      }
+
+      chartInstance = new Chart(ctx, {
+        type: "line",
+        data: {
+          labels,
+          datasets: [
+            {
+              label: "実差枚（累計）",
+              data: actualData,
+              borderWidth: 2,
+              tension: 0.2,
+              pointRadius: 3
+            },
+            {
+              label: "理論期待値ライン（累計）",
+              data: expectedData,
+              borderWidth: 2,
+              borderDash: [6, 4],
+              tension: 0.2,
+              pointRadius: 0
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: {
+            mode: "index",
+            intersect: false
+          },
+          plugins: {
+            legend: {
+              display: true,
+              labels: {
+                font: { size: 11 }
+              }
+            },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  const label = context.dataset.label || "";
+                  const value = context.parsed.y;
+                  return label + ": " + (value >= 0 ? "+" : "") + value.toLocaleString() + " 枚";
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              ticks: { font: { size: 10 } }
+            },
+            y: {
+              ticks: {
+                font: { size: 10 },
+                callback: function(value) {
+                  return value.toLocaleString() + " 枚";
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+
+    // ====== ユーティリティ ======
+    function escapeHtml(str) {
+      return str
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+  </script>
+</body>
+</html>
