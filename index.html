@@ -356,8 +356,8 @@
     <!-- グラフ -->
     <section class="card">
       <div class="card-title">
-        <span>新ハナビ収支グラフ</span>
-        <small>青：実践値 / 赤：期待値(102%)</small>
+        <span>差枚数グラフ</span>
+        <small>青：累計差枚数 / オレンジ：期待値(102%) / 灰：損益分岐ライン</small>
       </div>
       <canvas id="cumulativeChart"></canvas>
     </section>
@@ -661,8 +661,8 @@
       let cumGames = 0;
       let cumDiff = 0;
 
-      const actualPoints = [];
-      const expectedPoints = [];
+      const actualPoints = [{ x: 0, y: 0 }];
+      const expectedPoints = [{ x: 0, y: 0 }];
 
       sorted.forEach(r => {
         const g = r.totalGames || 0;
@@ -677,6 +677,12 @@
         expectedPoints.push({ x: cumGames, y: expectedY });
       });
 
+      const maxX = cumGames;
+      const breakEvenPoints = [
+        { x: 0, y: 0 },
+        { x: maxX, y: 0 }
+      ];
+
       if (chartInstance) {
         chartInstance.destroy();
       }
@@ -686,12 +692,12 @@
         data: {
           datasets: [
             {
-              label: "実践値",
+              label: "累計差枚数",
               data: actualPoints,
               parsing: false,
               borderWidth: 2,
               pointRadius: 2,
-              tension: 0 // 折れ線
+              tension: 0
             },
             {
               label: "期待値(102%)",
@@ -701,6 +707,15 @@
               pointRadius: 0,
               tension: 0,
               borderDash: [6, 4]
+            },
+            {
+              label: "損益分岐ライン",
+              data: breakEvenPoints,
+              parsing: false,
+              borderWidth: 1,
+              pointRadius: 0,
+              tension: 0,
+              borderDash: [2, 4]
             }
           ]
         },
@@ -717,7 +732,7 @@
               labels: {
                 font: { size: 11 }
               },
-              // 常に2本表示（凡例タップで消えないように）
+              // 凡例タップで線を消せないように（常に表示）
               onClick: () => {}
             },
             tooltip: {
