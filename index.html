@@ -102,6 +102,7 @@
       display: flex;
       gap: 8px;
       margin-top: 4px;
+      flex-wrap: wrap;
     }
 
     button {
@@ -231,17 +232,6 @@
       max-height: 260px;
     }
 
-    .settings-row {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-      margin-top: 6px;
-    }
-
-    .settings-row .form-group {
-      min-width: 130px;
-    }
-
     .note {
       font-size: 11px;
       color: #64748b;
@@ -327,36 +317,11 @@
       </div>
     </section>
 
-    <!-- 理論機械割（期待値ライン）設定 -->
-    <section class="card">
-      <div class="card-title">
-        <span>期待値ライン設定</span>
-        <small>グラフに「理論ライン（期待値）」を表示</small>
-      </div>
-      <div class="settings-row">
-        <div class="form-group">
-          <label>理論機械割（％）</label>
-          <input type="number" id="theoryRate" step="0.1" placeholder="例）102.0">
-        </div>
-        <div class="form-group">
-          <label>1Gあたり投入枚数</label>
-          <input type="number" id="betPerGame" step="0.1" placeholder="例）3" value="3">
-        </div>
-      </div>
-      <div class="btn-row">
-        <button class="btn-sub" id="applyTheoryBtn">期待値ラインを更新</button>
-        <button class="btn-sub" id="resetAllBtn">全データ削除</button>
-      </div>
-      <div class="note">
-        期待値累計差枚 ≒ 総ゲーム数 × ベット枚数 × （理論機械割−100）÷100 で計算しています。<br>
-        ※ ベット枚数は「平均3枚」など、自分の打ち方に合わせて調整してください。
-      </div>
-    </section>
-
-    <!-- サマリー -->
+    <!-- サマリー（102％固定の期待値） -->
     <section class="card">
       <div class="card-title">
         <span>成績サマリー</span>
+        <small>期待値ラインは機械割102％で固定</small>
       </div>
       <div class="summary-grid">
         <div class="summary-item">
@@ -376,9 +341,15 @@
           <div class="summary-value small" id="totalRate">- %</div>
         </div>
         <div class="summary-item">
-          <div class="summary-label">理論期待値（累計差枚）</div>
+          <div class="summary-label">理論期待値（累計差枚・102％）</div>
           <div class="summary-value small" id="sumExpected">- 枚</div>
         </div>
+      </div>
+      <div class="btn-row" style="margin-top:8px;">
+        <button class="btn-sub" id="resetAllBtn">全データ削除</button>
+      </div>
+      <div class="note">
+        理論期待値は「総投入枚数 × 2％（機械割102％のプラス分）」で計算しています。
       </div>
     </section>
 
@@ -386,7 +357,7 @@
     <section class="card">
       <div class="card-title">
         <span>累計差枚グラフ</span>
-        <small>実差枚と理論ラインを表示</small>
+        <small>実差枚と期待値ライン（102％）</small>
       </div>
       <canvas id="cumulativeChart"></canvas>
     </section>
@@ -428,21 +399,16 @@
   </main>
 
   <script>
-    // ====== データ格納用 ======
+    // ====== 定数（102％固定） ======
     const STORAGE_KEY = "shinHanabiRecords_v1";
-    const SETTINGS_KEY = "shinHanabiSettings_v1";
+    const FIXED_THEORY_RATE = 102.0;
+    const EDGE = (FIXED_THEORY_RATE - 100) / 100; // 102% → +2% = 0.02
 
     let records = [];
-    let settings = {
-      theoryRate: null,
-      betPerGame: 3
-    };
-
     let chartInstance = null;
 
     // ====== 初期化 ======
     window.addEventListener("DOMContentLoaded", () => {
-      // 日付を今日にセット
       const today = new Date().toISOString().slice(0, 10);
       document.getElementById("date").value = today;
 
@@ -454,7 +420,6 @@
     function bindEvents() {
       document.getElementById("addBtn").addEventListener("click", handleAddRecord);
       document.getElementById("clearFormBtn").addEventListener("click", clearForm);
-      document.getElementById("applyTheoryBtn").addEventListener("click", applyTheorySettings);
       document.getElementById("resetAllBtn").addEventListener("click", resetAllData);
     }
 
@@ -467,28 +432,10 @@
           records = [];
         }
       }
-
-      const rawSettings = localStorage.getItem(SETTINGS_KEY);
-      if (rawSettings) {
-        try {
-          settings = { ...settings, ...JSON.parse(rawSettings) };
-        } catch (e) {}
-      }
-
-      if (settings.theoryRate != null) {
-        document.getElementById("theoryRate").value = settings.theoryRate;
-      }
-      if (settings.betPerGame != null) {
-        document.getElementById("betPerGame").value = settings.betPerGame;
-      }
     }
 
     function saveData() {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
-    }
-
-    function saveSettings() {
-      localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
     }
 
     // ====== レコード追加 ======
@@ -554,27 +501,10 @@
       renderAll();
     }
 
-    // ====== 設定関連 ======
-    function applyTheorySettings() {
-      const theoryRate = Number(document.getElementById("theoryRate").value) || null;
-      const betPerGame = Number(document.getElementById("betPerGame").value) || 0;
-
-      settings.theoryRate = theoryRate;
-      settings.betPerGame = betPerGame > 0 ? betPerGame : 3;
-
-      saveSettings();
-      renderAll();
-    }
-
     function resetAllData() {
-      if (!confirm("全てのデータと設定を削除しますか？（元に戻せません）")) return;
+      if (!confirm("全てのデータを削除しますか？（元に戻せません）")) return;
       records = [];
-      settings = {
-        theoryRate: null,
-        betPerGame: 3
-      };
       saveData();
-      saveSettings();
       renderAll();
     }
 
@@ -593,7 +523,7 @@
 
       if (!records.length) return;
 
-      // 新しい順に表示したいので逆順で
+      // 新しい順に表示
       const displayRecords = [...records].sort((a, b) => (a.date > b.date ? -1 : a.date < b.date ? 1 : b.id - a.id));
 
       displayRecords.forEach(rec => {
@@ -695,20 +625,22 @@
       const sumMedals = sumPayout - sumInvest;
       const totalRate = sumInvest > 0 ? (sumPayout / sumInvest) * 100 : null;
 
-      // 理論期待値
+      // 理論期待値（102％固定）: 総投入枚数 × 2％
       let sumExpected = null;
-      if (settings.theoryRate && settings.betPerGame && sumGames > 0) {
-        const edge = (settings.theoryRate - 100) / 100; // 例：102% → 0.02
-        sumExpected = Math.round(sumGames * settings.betPerGame * edge);
+      if (sumInvest > 0) {
+        sumExpected = Math.round(sumInvest * EDGE);
       }
 
       document.getElementById("sumSessions").textContent = sumSessions + " 回";
       document.getElementById("sumGames").textContent = sumGames.toLocaleString() + " G";
-      document.getElementById("sumMedals").textContent = (sumMedals >= 0 ? "+" : "") + sumMedals.toLocaleString() + " 枚";
-      document.getElementById("totalRate").textContent = totalRate ? totalRate.toFixed(2) + " %" : "- %";
-      document.getElementById("sumExpected").textContent = sumExpected != null
-        ? (sumExpected >= 0 ? "+" : "") + sumExpected.toLocaleString() + " 枚"
-        : "- 枚";
+      document.getElementById("sumMedals").textContent =
+        (sumMedals >= 0 ? "+" : "") + sumMedals.toLocaleString() + " 枚";
+      document.getElementById("totalRate").textContent =
+        totalRate ? totalRate.toFixed(2) + " %" : "- %";
+      document.getElementById("sumExpected").textContent =
+        sumExpected != null
+          ? (sumExpected >= 0 ? "+" : "") + sumExpected.toLocaleString() + " 枚"
+          : "- 枚";
     }
 
     function renderChart() {
@@ -722,7 +654,7 @@
         return;
       }
 
-      // 古い順で累計差枚を計算
+      // 古い順で累計差枚・期待値ラインを計算
       const sorted = [...records].sort((a, b) => (a.date > b.date ? 1 : a.date < b.date ? -1 : a.id - b.id));
 
       let cumulative = 0;
@@ -732,9 +664,6 @@
       const actualData = [];
       const expectedData = [];
 
-      const theoryRate = settings.theoryRate;
-      const betPerGame = settings.betPerGame || 3;
-
       sorted.forEach(r => {
         const diff = (r.payout || 0) - (r.invest || 0);
         cumulative += diff;
@@ -742,13 +671,10 @@
         labels.push(r.date);
         actualData.push(cumulative);
 
-        if (theoryRate && betPerGame && r.totalGames) {
-          const edge = (theoryRate - 100) / 100;
-          cumulativeExpected += r.totalGames * betPerGame * edge;
-          expectedData.push(Math.round(cumulativeExpected));
-        } else {
-          expectedData.push(null);
-        }
+        // 期待値（102％固定）: 投入枚数 × 2％
+        const expectedDiff = (r.invest || 0) * EDGE;
+        cumulativeExpected += expectedDiff;
+        expectedData.push(Math.round(cumulativeExpected));
       });
 
       if (chartInstance) {
@@ -768,7 +694,7 @@
               pointRadius: 3
             },
             {
-              label: "理論期待値ライン（累計）",
+              label: "期待値ライン（102％・累計）",
               data: expectedData,
               borderWidth: 2,
               borderDash: [6, 4],
@@ -796,7 +722,8 @@
                 label: function(context) {
                   const label = context.dataset.label || "";
                   const value = context.parsed.y;
-                  return label + ": " + (value >= 0 ? "+" : "") + value.toLocaleString() + " 枚";
+                  return label + ": " + (value >= 0 ? "+" : "") +
+                    value.toLocaleString() + " 枚";
                 }
               }
             }
