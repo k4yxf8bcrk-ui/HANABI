@@ -300,12 +300,12 @@
           <input type="number" id="rb" inputmode="numeric">
         </div>
         <div class="form-group">
-          <label>投資枚数（差枚計算用）</label>
-          <input type="number" id="invest" inputmode="numeric" placeholder="例）1500">
+          <label>総投入枚数（IN枚数）</label>
+          <input type="number" id="invest" inputmode="numeric" placeholder="例）4500">
         </div>
         <div class="form-group">
-          <label>回収枚数</label>
-          <input type="number" id="payout" inputmode="numeric" placeholder="例）1800">
+          <label>総払い出し枚数（OUT枚数）</label>
+          <input type="number" id="payout" inputmode="numeric" placeholder="例）4800">
         </div>
       </div>
 
@@ -322,8 +322,8 @@
       </div>
 
       <div class="note">
-        ※ 投資は「枚」で入力しています（1000円46枚などの換算は自分のルールでOK）<br>
-        ※ 機械割は <strong>回収枚数 ÷ 投資枚数 × 100</strong> で計算しています。
+        ※ IN枚数は、その日の総投入枚数（現金＋貯メダルなどを含めた総ベット）を入力してください。<br>
+        ※ 機械割（%） = <strong>(総払い出し枚数 ÷ 総投入枚数) × 100</strong> で計算しています。
       </div>
     </section>
 
@@ -407,8 +407,8 @@
               <th>G数</th>
               <th>BB</th>
               <th>RB</th>
-              <th>投資</th>
-              <th>回収</th>
+              <th>投入</th>
+              <th>払出</th>
               <th>差枚</th>
               <th>機械割</th>
               <th>合算</th>
@@ -421,7 +421,7 @@
         </table>
       </div>
       <div class="note">
-        機械割：回収 ÷ 投資 × 100<br>
+        機械割（%） = (総払い出し枚数 ÷ 総投入枚数) × 100<br>
         合算：総ゲーム数 ÷（BB + RB） ※ボーナス合算
       </div>
     </section>
@@ -508,7 +508,7 @@
         return;
       }
       if (invest <= 0 && payout <= 0 && totalGames <= 0) {
-        if (!confirm("G数・投資・回収が空です。このまま追加しますか？")) return;
+        if (!confirm("G数・投入・払出が空です。このまま追加しますか？")) return;
       }
 
       const newRecord = {
@@ -823,7 +823,7 @@
       return str
         .replace(/&/g, "&amp;")
         .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;/")
+        .replace(/>/g, "&gt;")
         .replace(/"/g, "&quot;")
         .replace(/'/g, "&#039;");
     }
