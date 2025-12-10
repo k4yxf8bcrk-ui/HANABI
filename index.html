@@ -415,8 +415,9 @@
               <th>削除</th>
             </tr>
           </thead>
-          <tbody id="recordsBody">
-          </tbody>
+          <tbody id="recordsBody"></tbody>
+          <!-- 合計＆ボーナス確率表示用 -->
+          <tfoot id="recordsFooter"></tfoot>
         </table>
       </div>
       <div class="note">
@@ -586,7 +587,9 @@
 
     function renderTable() {
       const tbody = document.getElementById("recordsBody");
+      const tfoot = document.getElementById("recordsFooter");
       tbody.innerHTML = "";
+      tfoot.innerHTML = "";
 
       if (!records.length) return;
 
@@ -626,6 +629,49 @@
 
         tbody.appendChild(tr);
       });
+
+      // 合計行（全体の合計とボーナス確率）
+      let totalGames = 0;
+      let totalBB = 0;
+      let totalRB = 0;
+      let totalInvest = 0;
+      let totalPayout = 0;
+
+      records.forEach(r => {
+        totalGames += r.totalGames || 0;
+        totalBB += r.bb || 0;
+        totalRB += r.rb || 0;
+        totalInvest += r.invest || 0;
+        totalPayout += r.payout || 0;
+      });
+
+      const totalDiff = totalPayout - totalInvest;
+      const totalRate = totalInvest > 0 ? (totalPayout / totalInvest) * 100 : null;
+      const totalBonus = totalBB + totalRB;
+      const overallGassan = totalBonus > 0 ? totalGames / totalBonus : null;
+
+      const diffClassTotal = totalDiff > 0 ? "good" : totalDiff < 0 ? "bad" : "";
+
+      tfoot.innerHTML = `
+        <tr>
+          <th>合計</th>
+          <th></th>
+          <th></th>
+          <th>${totalGames ? totalGames.toLocaleString() : ""}</th>
+          <th>${totalBB || ""}</th>
+          <th>${totalRB || ""}</th>
+          <th>${totalInvest ? totalInvest.toLocaleString() : ""}</th>
+          <th>${totalPayout ? totalPayout.toLocaleString() : ""}</th>
+          <th>
+            <span class="${diffClassTotal ? "chip " + diffClassTotal : ""}">
+              ${totalDiff ? totalDiff.toLocaleString() : "0"}
+            </span>
+          </th>
+          <th>${totalRate ? totalRate.toFixed(1) + " %" : "-"}</th>
+          <th>${overallGassan ? "1/" + overallGassan.toFixed(1) : "-"}</th>
+          <th></th>
+        </tr>
+      `;
 
       // 削除ボタンにイベント
       tbody.querySelectorAll(".delete-btn").forEach(btn => {
@@ -777,7 +823,7 @@
       return str
         .replace(/&/g, "&amp;")
         .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
+        .replace(/>/g, "&gt;/")
         .replace(/"/g, "&quot;")
         .replace(/'/g, "&#039;");
     }
