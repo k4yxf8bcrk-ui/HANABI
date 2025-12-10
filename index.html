@@ -715,6 +715,10 @@
               display: true,
               labels: {
                 font: { size: 11 }
+              },
+              // ← ここで凡例タップしてもON/OFFできないようにする
+              onClick: (e, legendItem, legend) => {
+                // 何もしない＝常に2本とも表示されたまま
               }
             },
             tooltip: {
