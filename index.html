@@ -349,15 +349,15 @@
         <button class="btn-sub" id="resetAllBtn">全データ削除</button>
       </div>
       <div class="note">
-        理論期待値は「総投入枚数 × 2％（機械割102％のプラス分）」で計算しています。
+        理論期待値は「累計ゲーム数 × 3枚 × 2％（機械割102％のプラス分）」で計算しています。
       </div>
     </section>
 
     <!-- グラフ -->
     <section class="card">
       <div class="card-title">
-        <span>累計差枚グラフ</span>
-        <small>実差枚と期待値ライン（102％）</small>
+        <span>新ハナビ収支グラフ</span>
+        <small>青：実践値 / 赤：期待値(102%)</small>
       </div>
       <canvas id="cumulativeChart"></canvas>
     </section>
@@ -387,7 +387,6 @@
             </tr>
           </thead>
           <tbody id="recordsBody"></tbody>
-          <!-- 合計＆ボーナス確率表示用 -->
           <tfoot id="recordsFooter"></tfoot>
         </table>
       </div>
@@ -399,10 +398,11 @@
   </main>
 
   <script>
-    // ====== 定数（102％固定） ======
+    // ====== 定数（102％固定, 1Gあたり3枚） ======
     const STORAGE_KEY = "shinHanabiRecords_v1";
-    const FIXED_THEORY_RATE = 102.0;
-    const EDGE = (FIXED_THEORY_RATE - 100) / 100; // 102% → +2% = 0.02
+    const EXPECTED_RATE = 1.02;   // 102%
+    const BET_PER_GAME = 3;       // 1Gあたり3枚
+    const EDGE_PER_GAME = BET_PER_GAME * (EXPECTED_RATE - 1); // 期待値枚数/G
 
     let records = [];
     let chartInstance = null;
@@ -508,13 +508,14 @@
       renderAll();
     }
 
-    // ====== 描画 ======
+    // ====== 全体描画 ======
     function renderAll() {
       renderTable();
       renderSummary();
       renderChart();
     }
 
+    // ====== 収支一覧テーブル ======
     function renderTable() {
       const tbody = document.getElementById("recordsBody");
       const tfoot = document.getElementById("recordsFooter");
@@ -523,7 +524,6 @@
 
       if (!records.length) return;
 
-      // 新しい順に表示
       const displayRecords = [...records].sort((a, b) => (a.date > b.date ? -1 : a.date < b.date ? 1 : b.id - a.id));
 
       displayRecords.forEach(rec => {
@@ -560,7 +560,7 @@
         tbody.appendChild(tr);
       });
 
-      // 合計行（全体の合計とボーナス確率）
+      // 合計行
       let totalGames = 0;
       let totalBB = 0;
       let totalRB = 0;
@@ -603,13 +603,13 @@
         </tr>
       `;
 
-      // 削除ボタンにイベント
       tbody.querySelectorAll(".delete-btn").forEach(btn => {
         const id = Number(btn.getAttribute("data-id"));
         btn.addEventListener("click", () => deleteRecord(id));
       });
     }
 
+    // ====== サマリー ======
     function renderSummary() {
       const sumSessions = records.length;
       let sumGames = 0;
@@ -625,10 +625,10 @@
       const sumMedals = sumPayout - sumInvest;
       const totalRate = sumInvest > 0 ? (sumPayout / sumInvest) * 100 : null;
 
-      // 理論期待値（102％固定）: 総投入枚数 × 2％
+      // 期待値：累計ゲーム数ベース
       let sumExpected = null;
-      if (sumInvest > 0) {
-        sumExpected = Math.round(sumInvest * EDGE);
+      if (sumGames > 0) {
+        sumExpected = Math.round(sumGames * EDGE_PER_GAME);
       }
 
       document.getElementById("sumSessions").textContent = sumSessions + " 回";
@@ -643,8 +643,10 @@
           : "- 枚";
     }
 
+    // ====== グラフ（累計G数 × 累計差枚） ======
     function renderChart() {
-      const ctx = document.getElementById("cumulativeChart").getContext("2d");
+      const canvas = document.getElementById("cumulativeChart");
+      const ctx = canvas.getContext("2d");
 
       if (!records.length) {
         if (chartInstance) {
@@ -654,27 +656,25 @@
         return;
       }
 
-      // 古い順で累計差枚・期待値ラインを計算
       const sorted = [...records].sort((a, b) => (a.date > b.date ? 1 : a.date < b.date ? -1 : a.id - b.id));
 
-      let cumulative = 0;
-      let cumulativeExpected = 0;
+      let cumGames = 0;
+      let cumDiff = 0;
 
-      const labels = [];
-      const actualData = [];
-      const expectedData = [];
+      const actualPoints = [];
+      const expectedPoints = [];
 
       sorted.forEach(r => {
+        const g = r.totalGames || 0;
         const diff = (r.payout || 0) - (r.invest || 0);
-        cumulative += diff;
 
-        labels.push(r.date);
-        actualData.push(cumulative);
+        cumGames += g;
+        cumDiff += diff;
 
-        // 期待値（102％固定）: 投入枚数 × 2％
-        const expectedDiff = (r.invest || 0) * EDGE;
-        cumulativeExpected += expectedDiff;
-        expectedData.push(Math.round(cumulativeExpected));
+        const expectedY = cumGames * EDGE_PER_GAME;
+
+        actualPoints.push({ x: cumGames, y: cumDiff });
+        expectedPoints.push({ x: cumGames, y: expectedY });
       });
 
       if (chartInstance) {
@@ -684,22 +684,23 @@
       chartInstance = new Chart(ctx, {
         type: "line",
         data: {
-          labels,
           datasets: [
             {
-              label: "実差枚（累計）",
-              data: actualData,
+              label: "実践値",
+              data: actualPoints,
+              parsing: false,
               borderWidth: 2,
-              tension: 0.2,
-              pointRadius: 3
+              pointRadius: 2,
+              tension: 0 // 折れ線
             },
             {
-              label: "期待値ライン（102％・累計）",
-              data: expectedData,
+              label: "期待値(102%)",
+              data: expectedPoints,
+              parsing: false,
               borderWidth: 2,
-              borderDash: [6, 4],
-              tension: 0.2,
-              pointRadius: 0
+              pointRadius: 0,
+              tension: 0,
+              borderDash: [6, 4]
             }
           ]
         },
@@ -716,31 +717,52 @@
               labels: {
                 font: { size: 11 }
               },
-              // ← ここで凡例タップしてもON/OFFできないようにする
-              onClick: (e, legendItem, legend) => {
-                // 何もしない＝常に2本とも表示されたまま
-              }
+              // 常に2本表示（凡例タップで消えないように）
+              onClick: () => {}
             },
             tooltip: {
               callbacks: {
-                label: function(context) {
+                label: function (context) {
                   const label = context.dataset.label || "";
-                  const value = context.parsed.y;
-                  return label + ": " + (value >= 0 ? "+" : "") +
-                    value.toLocaleString() + " 枚";
+                  const x = context.parsed.x;
+                  const y = context.parsed.y;
+                  return (
+                    label +
+                    ": G=" +
+                    x.toLocaleString() +
+                    " / " +
+                    (y >= 0 ? "+" : "") +
+                    y.toLocaleString() +
+                    " 枚"
+                  );
                 }
               }
+            },
+            title: {
+              display: false
             }
           },
           scales: {
             x: {
-              ticks: { font: { size: 10 } }
+              type: "linear",
+              title: {
+                display: true,
+                text: "累計ゲーム数"
+              },
+              ticks: {
+                callback: function (value) {
+                  return value.toLocaleString();
+                }
+              }
             },
             y: {
+              title: {
+                display: true,
+                text: "累計差枚"
+              },
               ticks: {
-                font: { size: 10 },
-                callback: function(value) {
-                  return value.toLocaleString() + " 枚";
+                callback: function (value) {
+                  return value.toLocaleString();
                 }
               }
             }
